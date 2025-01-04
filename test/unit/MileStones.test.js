@@ -46,6 +46,9 @@ const { assert, expect, chai } = require("chai");
         beforeEach(async () => {
           await mileStones.lockFunds({ value: sendValue });
         });
+        it("reverts when user tries to lock in again", async function () {
+          await expect(mileStones.lockFunds()).to.be.reverted;
+        });
 
         it("complete milestone for a single funder", async function () {
           //await mileStones.lockFunds({ value: sendValue });

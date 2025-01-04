@@ -18,6 +18,7 @@
     "solidity-coverage": "^0.8.0"
   },
   "dependencies": {
+    "fs": "^0.0.1-security",
     "hardhat-deploy": "^0.14.0"
   }
 }
