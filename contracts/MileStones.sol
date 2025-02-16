@@ -135,6 +135,7 @@ contract MileStones is AutomationCompatibleInterface {
         owner_balance = temp_owner_balance;
         activeMilestones = updatedMileStones;
         s_lastTimeStamp = block.timestamp;
+        s_raffleState = RaffleState.OPEN;
     }
 
     function completeMilestone(string memory productId) external onlyCreator(productId){
