@@ -5,6 +5,7 @@ contract MileStones {
     
     struct Milestone {
         address creator;
+        uint256 totalMilestones;
         uint256 totalAmount;
         uint256 milestoneCompleted;
         uint256 amountWithdrawn;
@@ -14,9 +15,10 @@ contract MileStones {
     }
 
     mapping(address => mapping( string => Milestone)) private milestones;
+    mapping(string => Milestone) private products; // Do they get mapped to the same Milestone
     
     uint256 private constant MILESTONE_COUNT = 5;
-    uint256 private constant PLATFORM_PERCENTAGE = 5; // Example platform fee of 2%
+    uint256 private constant PLATFORM_PERCENTAGE = 5; // Platform fee of 5%
     uint256 private owner_balance ;
     address private platformWallet;
     string[] private activeMilestones;
@@ -55,6 +57,7 @@ contract MileStones {
 
         milestones[msg.sender][productId] = Milestone({
             creator: msg.sender,
+            totalMilestones: MILESTONE_COUNT, 
             totalAmount: netAmount,
             milestoneCompleted: 0,
             amountWithdrawn: 0,
@@ -63,38 +66,56 @@ contract MileStones {
             endsAt: endsAt
         });
 
+        products[productId] = Milestone({
+            creator: msg.sender,
+            totalMilestones: MILESTONE_COUNT, 
+            totalAmount: netAmount,
+            milestoneCompleted: 0,
+            amountWithdrawn: 0,
+            createdAt: block.timestamp,
+            isCompleted: false,
+            endsAt: endsAt
+        });
+
+
         emit FundsLocked(msg.sender, netAmount);
     }
 
     function completeMilestone(string memory productId) external onlyCreator(productId){
         Milestone storage milestone = milestones[msg.sender][productId];
+        Milestone storage product = products[productId];
         require(milestone.totalAmount > 0, "No funds locked");
-        require(milestone.milestoneCompleted < MILESTONE_COUNT, "All milestones already completed");
+        require(milestone.endsAt <= block.timestamp, "Milestone Expired");
+        require(milestone.milestoneCompleted < milestone.totalMilestones, "All milestones already completed");
 
-        uint256 milestoneAmount = milestone.totalAmount / MILESTONE_COUNT;
+        uint256 milestoneAmount = milestone.totalAmount / milestone.totalMilestones;
         milestone.milestoneCompleted++;
+        product.milestoneCompleted++;
 
-        if (milestone.milestoneCompleted == MILESTONE_COUNT) {
+        if (milestone.milestoneCompleted == milestone.totalMilestones) {
             // Final milestone: Release all remaining funds
             string[] memory copiedActiveMilestone = activeMilestones;
-            string[] memory updateMileStones = new string[] (copiedActiveMilestone.length - 1);
+            string[] memory updatedMileStones = new string[] (copiedActiveMilestone.length - 1);
             uint256 j;
             j = 0;
             for (uint256 i = 0; i < copiedActiveMilestone.length; i++){
                 if (keccak256(abi.encodePacked(copiedActiveMilestone[i])) != keccak256(abi.encodePacked(productId))) {
-                    updateMileStones[j] = copiedActiveMilestone[i];
+                    updatedMileStones[j] = copiedActiveMilestone[i];
                     j+=1;
                 }
             }
-            activeMilestones = updateMileStones;
+            activeMilestones = updatedMileStones;
 
             uint256 remainingAmount = milestone.totalAmount - milestone.amountWithdrawn;
             milestone.amountWithdrawn += remainingAmount;
             milestone.isCompleted = true;
+            product.amountWithdrawn += remainingAmount;
+            product.isCompleted = true;
             payable(msg.sender).transfer(remainingAmount);
             emit AllFundsWithdrawn(msg.sender, milestone.totalAmount);
         } else {
             milestone.amountWithdrawn += milestoneAmount;
+            product.amountWithdrawn += milestoneAmount;
             payable(msg.sender).transfer(milestoneAmount);
             emit MilestoneCompleted(msg.sender, milestone.milestoneCompleted, milestoneAmount);
         }
