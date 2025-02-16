@@ -6,7 +6,7 @@ error Milestones__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, ui
 
 contract MileStones is AutomationCompatibleInterface {
     
-    enum RaffleState {
+    enum MileStoneState {
         OPEN,
         CALCULATING
     }
@@ -38,7 +38,7 @@ contract MileStones is AutomationCompatibleInterface {
     event AllFundsWithdrawn(address indexed user, uint256 totalAmount);
     event OwnersWithdrawl(address indexed creator, uint256 amount);
     
-    RaffleState private s_raffleState;
+    MileStoneState private s_milestoneState;
 
     constructor(address _platformWallet, uint256 interval) {
         require(_platformWallet != address(0), "Invalid platform wallet");
@@ -90,7 +90,7 @@ contract MileStones is AutomationCompatibleInterface {
         override
         returns (bool upkeepNeeded, bytes memory /* performData */ )
     {
-        bool isOpen = RaffleState.OPEN == s_raffleState;
+        bool isOpen = MileStoneState.OPEN == s_milestoneState;
         bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
         bool hasActiveMilestones = activeMilestones.length > 0;
         bool hasBalance = address(this).balance > 0;
@@ -103,9 +103,9 @@ contract MileStones is AutomationCompatibleInterface {
         (bool upkeepNeeded,) = checkUpkeep("");
         // require(upkeepNeeded, "Upkeep not needed");
         if (!upkeepNeeded) {
-            revert Milestones__UpkeepNotNeeded(address(this).balance, activeMilestones.length, uint256(s_raffleState));
+            revert Milestones__UpkeepNotNeeded(address(this).balance, activeMilestones.length, uint256(s_milestoneState));
         }
-        s_raffleState = RaffleState.CALCULATING;
+        s_milestoneState = MileStoneState.CALCULATING;
         string[] memory copiedActiveMilestone = activeMilestones;
         uint256 temp_owner_balance = owner_balance;
         uint256 j;
@@ -135,7 +135,7 @@ contract MileStones is AutomationCompatibleInterface {
         owner_balance = temp_owner_balance;
         activeMilestones = updatedMileStones;
         s_lastTimeStamp = block.timestamp;
-        s_raffleState = RaffleState.OPEN;
+        s_milestoneState = MileStoneState.OPEN;
     }
 
     function completeMilestone(string memory productId) external onlyCreator(productId){
