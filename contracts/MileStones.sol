@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
+error Milestones__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
 
-contract MileStones {
+
+contract MileStones is AutomationCompatibleInterface {
     
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    }
+
     struct Milestone {
         address creator;
         uint256 totalMilestones;
@@ -14,7 +22,6 @@ contract MileStones {
         uint256 endsAt;
     }
 
-    mapping(address => mapping( string => Milestone)) private milestones;
     mapping(string => Milestone) private products; // Do they get mapped to the same Milestone
     
     uint256 private constant MILESTONE_COUNT = 5;
@@ -23,15 +30,22 @@ contract MileStones {
     address private platformWallet;
     string[] private activeMilestones;
 
+    uint256 private immutable i_interval;
+    uint256 private s_lastTimeStamp;
+
     event FundsLocked(address indexed user, uint256 amount);
     event MilestoneCompleted(address indexed user, uint256 milestone, uint256 amountReleased);
     event AllFundsWithdrawn(address indexed user, uint256 totalAmount);
-    event OwnersWithdrawl(address creator, uint256 amount);
+    event OwnersWithdrawl(address indexed creator, uint256 amount);
+    
+    RaffleState private s_raffleState;
 
-    constructor(address _platformWallet) {
+    constructor(address _platformWallet, uint256 interval) {
         require(_platformWallet != address(0), "Invalid platform wallet");
         platformWallet = _platformWallet;
         owner_balance = 0;
+        s_lastTimeStamp = block.timestamp;
+        i_interval = interval;
     }
 
     modifier onlyOwner() {
@@ -40,13 +54,13 @@ contract MileStones {
     }
 
     modifier onlyCreator(string memory productId) {
-        require(milestones[msg.sender][productId].creator == msg.sender, "Only the creator can perform this action");
+        require(products[productId].creator == msg.sender, "Only the platform wallet can perform this action");
         _;
     }
 
     function lockFunds(string memory productId) external payable {
         require(msg.value > 0, "Funds must be greater than 0");
-        require(milestones[msg.sender][productId].totalAmount == 0, "User already locked funds");
+        require(products[productId].totalAmount == 0, "User already locked funds");
         activeMilestones.push(productId);
         uint256 fee = (msg.value * PLATFORM_PERCENTAGE) / 100;
         uint256 netAmount = msg.value - fee;
@@ -54,18 +68,7 @@ contract MileStones {
         uint256 endsAt = block.timestamp + 3600*24*7;
 
         //payable(platformWallet).transfer(fee);
-
-        milestones[msg.sender][productId] = Milestone({
-            creator: msg.sender,
-            totalMilestones: MILESTONE_COUNT, 
-            totalAmount: netAmount,
-            milestoneCompleted: 0,
-            amountWithdrawn: 0,
-            createdAt: block.timestamp,
-            isCompleted: false,
-            endsAt: endsAt
-        });
-
+        
         products[productId] = Milestone({
             creator: msg.sender,
             totalMilestones: MILESTONE_COUNT, 
@@ -81,18 +84,69 @@ contract MileStones {
         emit FundsLocked(msg.sender, netAmount);
     }
 
-    function completeMilestone(string memory productId) external onlyCreator(productId){
-        Milestone storage milestone = milestones[msg.sender][productId];
-        Milestone storage product = products[productId];
-        require(milestone.totalAmount > 0, "No funds locked");
-        require(milestone.endsAt <= block.timestamp, "Milestone Expired");
-        require(milestone.milestoneCompleted < milestone.totalMilestones, "All milestones already completed");
+    function checkUpkeep(bytes memory /* checkData */ )
+        public
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory /* performData */ )
+    {
+        bool isOpen = RaffleState.OPEN == s_raffleState;
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasActiveMilestones = activeMilestones.length > 0;
+        bool hasBalance = address(this).balance > 0;
+        upkeepNeeded = (timePassed && isOpen && hasBalance && hasActiveMilestones);
+        return (upkeepNeeded, "0x0"); // can we comment this out?
+    }
 
-        uint256 milestoneAmount = milestone.totalAmount / milestone.totalMilestones;
-        milestone.milestoneCompleted++;
+
+    function performUpkeep(bytes calldata /* performData */ ) external override {
+        (bool upkeepNeeded,) = checkUpkeep("");
+        // require(upkeepNeeded, "Upkeep not needed");
+        if (!upkeepNeeded) {
+            revert Milestones__UpkeepNotNeeded(address(this).balance, activeMilestones.length, uint256(s_raffleState));
+        }
+        s_raffleState = RaffleState.CALCULATING;
+        string[] memory copiedActiveMilestone = activeMilestones;
+        uint256 temp_owner_balance = owner_balance;
+        uint256 j;
+        j = 0;
+        for (uint256 i = 0; i < copiedActiveMilestone.length; i++){
+            string memory milestoneId = copiedActiveMilestone[i];
+            Milestone storage milestone =  products[milestoneId];
+            if (milestone.endsAt > block.timestamp) {
+                j+=1;
+            }
+        }
+        string[] memory updatedMileStones = new string[](j);
+        j = 0;
+        for (uint256 i = 0; i < copiedActiveMilestone.length; i++){
+            string memory milestoneId = copiedActiveMilestone[i];
+            Milestone storage milestone =  products[milestoneId];
+            if (milestone.endsAt > block.timestamp) {
+                updatedMileStones[j] = copiedActiveMilestone[i];
+                j+=1;
+            }else{
+                temp_owner_balance += milestone.totalAmount -  milestone.amountWithdrawn;
+                milestone.isCompleted = true;
+                milestone.amountWithdrawn = milestone.totalAmount;
+            }
+            products[milestoneId] = milestone;
+        }
+        owner_balance = temp_owner_balance;
+        activeMilestones = updatedMileStones;
+        s_lastTimeStamp = block.timestamp;
+    }
+
+    function completeMilestone(string memory productId) external onlyCreator(productId){
+        Milestone storage product = products[productId];
+        require(product.totalAmount > 0, "No funds locked");
+        require(product.endsAt <= block.timestamp, "Milestone Expired");
+        require(product.milestoneCompleted < product.totalMilestones, "All milestones already completed");
+
+        uint256 milestoneAmount = product.totalAmount / product.totalMilestones;
         product.milestoneCompleted++;
 
-        if (milestone.milestoneCompleted == milestone.totalMilestones) {
+        if (product.milestoneCompleted == product.totalMilestones) {
             // Final milestone: Release all remaining funds
             string[] memory copiedActiveMilestone = activeMilestones;
             string[] memory updatedMileStones = new string[] (copiedActiveMilestone.length - 1);
@@ -106,29 +160,26 @@ contract MileStones {
             }
             activeMilestones = updatedMileStones;
 
-            uint256 remainingAmount = milestone.totalAmount - milestone.amountWithdrawn;
-            milestone.amountWithdrawn += remainingAmount;
-            milestone.isCompleted = true;
+            uint256 remainingAmount = product.totalAmount - product.amountWithdrawn;
             product.amountWithdrawn += remainingAmount;
             product.isCompleted = true;
             payable(msg.sender).transfer(remainingAmount);
-            emit AllFundsWithdrawn(msg.sender, milestone.totalAmount);
+            emit AllFundsWithdrawn(msg.sender, product.totalAmount);
         } else {
-            milestone.amountWithdrawn += milestoneAmount;
             product.amountWithdrawn += milestoneAmount;
             payable(msg.sender).transfer(milestoneAmount);
-            emit MilestoneCompleted(msg.sender, milestone.milestoneCompleted, milestoneAmount);
+            emit MilestoneCompleted(msg.sender, product.milestoneCompleted, milestoneAmount);
         }
     }
 
     function ownersWithdrawl( uint256 amount) external onlyOwner() {
-        require(amount <= owner_balance, "Amount exceeds collected funds");
+        require(amount <= owner_balance * 70 / 100, "Amount exceeds collected funds");
         payable(msg.sender).transfer(amount);
         owner_balance -= amount;
         emit OwnersWithdrawl(msg.sender, amount);
     }
 
-    function getUserMilestoneDetails(address _user, string memory productId) external view returns (Milestone memory) {
-        return milestones[_user][productId];
+    function getUserMilestoneDetails(string memory productId) external onlyOwner() onlyCreator(productId) view returns (Milestone memory) {
+        return products[productId];
     }
 }
