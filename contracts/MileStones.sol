@@ -3,67 +3,106 @@ pragma solidity ^0.8.0;
 
 contract MileStones {
     
-    struct User {
+    struct Milestone {
+        address creator;
         uint256 totalAmount;
         uint256 milestoneCompleted;
         uint256 amountWithdrawn;
+        uint256 createdAt;
+        bool isCompleted;
+        uint256 endedAt;
     }
 
-    mapping(address => User) public users;
+    mapping(address => mapping( string => Milestone)) private milestones;
     
-    uint256 public milestoneCount = 4;
-    uint256 public platformFeePercentage = 2; // Example platform fee of 2%
-    address public platformWallet;
+    uint256 private constant MILESTONE_COUNT = 5;
+    uint256 private constant PLATFORM_PERCENTAGE = 5; // Example platform fee of 2%
+    uint256 private owner_balance ;
+    address private platformWallet;
+    string[] private activeMilestones;
 
     event FundsLocked(address indexed user, uint256 amount);
     event MilestoneCompleted(address indexed user, uint256 milestone, uint256 amountReleased);
     event AllFundsWithdrawn(address indexed user, uint256 totalAmount);
+    event OwnersWithdrawl(address creator, uint256 amount);
 
     constructor(address _platformWallet) {
         require(_platformWallet != address(0), "Invalid platform wallet");
         platformWallet = _platformWallet;
+        owner_balance = 0;
     }
 
-    function lockFunds() external payable {
+    modifier onlyOwner() {
+        require(platformWallet == msg.sender, "Only the creator can perform this action");
+        _;
+    }
+
+    function lockFunds(string memory productId) external payable {
         require(msg.value > 0, "Funds must be greater than 0");
-        require(users[msg.sender].totalAmount == 0, "User already locked funds");
-
-        uint256 fee = (msg.value * platformFeePercentage) / 100;
+        require(milestones[msg.sender][productId].totalAmount == 0, "User already locked funds");
+        activeMilestones.push(productId);
+        uint256 fee = (msg.value * PLATFORM_PERCENTAGE) / 100;
         uint256 netAmount = msg.value - fee;
+        owner_balance += fee;
 
-        payable(platformWallet).transfer(fee);
+        //payable(platformWallet).transfer(fee);
 
-        users[msg.sender] = User({
+        milestones[msg.sender][productId] = Milestone({
+            creator: msg.sender,
             totalAmount: netAmount,
             milestoneCompleted: 0,
-            amountWithdrawn: 0
+            amountWithdrawn: 0,
+            createdAt: block.timestamp,
+            isCompleted: false,
+            endedAt: 0x000
         });
 
         emit FundsLocked(msg.sender, netAmount);
     }
 
-    function completeMilestone() external {
-        User storage user = users[msg.sender];
-        require(user.totalAmount > 0, "No funds locked");
-        require(user.milestoneCompleted < milestoneCount, "All milestones already completed");
+    function completeMilestone(string memory productId) external {
+        Milestone storage milestone = milestones[msg.sender][productId];
+        require(milestone.totalAmount > 0, "No funds locked");
+        require(milestone.milestoneCompleted < MILESTONE_COUNT, "All milestones already completed");
 
-        uint256 milestoneAmount = user.totalAmount / milestoneCount;
-        user.milestoneCompleted++;
+        uint256 milestoneAmount = milestone.totalAmount / MILESTONE_COUNT;
+        milestone.milestoneCompleted++;
 
-        if (user.milestoneCompleted == milestoneCount) {
+        if (milestone.milestoneCompleted == MILESTONE_COUNT) {
             // Final milestone: Release all remaining funds
-            uint256 remainingAmount = user.totalAmount - user.amountWithdrawn;
-            user.amountWithdrawn += remainingAmount;
+            string[] memory copiedActiveMilestone = activeMilestones;
+            string[] memory updateMileStones = new string[] (copiedActiveMilestone.length - 1);
+            uint256 j;
+            j = 0;
+            for (uint256 i = 0; i < copiedActiveMilestone.length; i++){
+                if (keccak256(abi.encodePacked(copiedActiveMilestone[i])) != keccak256(abi.encodePacked(productId))) {
+                    updateMileStones[j] = copiedActiveMilestone[i];
+                    j+=1;
+                }
+            }
+            activeMilestones = updateMileStones;
+
+            uint256 remainingAmount = milestone.totalAmount - milestone.amountWithdrawn;
+            milestone.amountWithdrawn += remainingAmount;
+            milestone.isCompleted = true;
+            milestone.endedAt = block.timestamp;
             payable(msg.sender).transfer(remainingAmount);
-            emit AllFundsWithdrawn(msg.sender, user.totalAmount);
+            emit AllFundsWithdrawn(msg.sender, milestone.totalAmount);
         } else {
-            user.amountWithdrawn += milestoneAmount;
+            milestone.amountWithdrawn += milestoneAmount;
             payable(msg.sender).transfer(milestoneAmount);
-            emit MilestoneCompleted(msg.sender, user.milestoneCompleted, milestoneAmount);
+            emit MilestoneCompleted(msg.sender, milestone.milestoneCompleted, milestoneAmount);
         }
     }
 
-    function getUserDetails(address _user) external view returns (User memory) {
-        return users[_user];
+    function ownersWithdrawl( uint256 amount) external onlyOwner() {
+        require(amount <= owner_balance, "Amount exceeds collected funds");
+        payable(msg.sender).transfer(amount);
+        owner_balance -= amount;
+        emit OwnersWithdrawl(msg.sender, amount);
+    }
+
+    function getUserMilestoneDetails(address _user, string memory productId) external view returns (Milestone memory) {
+        return milestones[_user][productId];
     }
 }
