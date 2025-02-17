@@ -141,4 +141,21 @@ const productIds = [
           }
         });
       });
+
+      describe("performUpkeep", function () {
+        it("can only run if checkupkeep is true", async () => {
+          await mileStones.lockFunds(productIds[0], { value: sendValue });
+          await mileStones.completeMilestone(productIds[0]);
+          const balanceBeforeUpkep = await mileStones.getOwnerBalance();
+          await network.provider.send("evm_increaseTime", [3600 * 24 * 7 + 1]);
+          await network.provider.request({ method: "evm_mine", params: [] });
+          const tx = await mileStones.performUpkeep("0x");
+          const balanceAfterUpkep = await mileStones.getOwnerBalance();
+          console.log(balanceBeforeUpkep, balanceAfterUpkep);
+          assert(tx);
+        });
+        it("reverts if checkup is false", async () => {
+          await expect(mileStones.performUpkeep("0x")).to.be.reverted;
+        });
+      });
     });

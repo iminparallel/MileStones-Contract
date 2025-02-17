@@ -187,4 +187,8 @@ contract MileStones is AutomationCompatibleInterface {
     function getCurrentTimestamp() public view returns (uint256) {
         return block.timestamp;
     }
+
+    function getOwnerBalance() public view onlyOwner() returns (uint256) {
+        return owner_balance;
+    }
 }
