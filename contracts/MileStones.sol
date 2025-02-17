@@ -22,7 +22,7 @@ contract MileStones is AutomationCompatibleInterface {
         uint256 endsAt;
     }
 
-    mapping(string => Milestone) private products; // Do they get mapped to the same Milestone
+    mapping(string => Milestone) private products; 
     
     uint256 private constant MILESTONE_COUNT = 5;
     uint256 private constant PLATFORM_PERCENTAGE = 5; // Platform fee of 5%
@@ -49,12 +49,12 @@ contract MileStones is AutomationCompatibleInterface {
     }
 
     modifier onlyOwner() {
-        require(platformWallet == msg.sender, "Only the creator can perform this action");
+        require(platformWallet == msg.sender, "Only the platform wallet can perform this action");
         _;
     }
 
     modifier onlyCreator(string memory productId) {
-        require(products[productId].creator == msg.sender, "Only the platform wallet can perform this action");
+        require(products[productId].creator == msg.sender, "Only the creator wallet can perform this action");
         _;
     }
 
@@ -141,7 +141,7 @@ contract MileStones is AutomationCompatibleInterface {
     function completeMilestone(string memory productId) external onlyCreator(productId){
         Milestone storage product = products[productId];
         require(product.totalAmount > 0, "No funds locked");
-        require(product.endsAt <= block.timestamp, "Milestone Expired");
+        require(product.endsAt >= block.timestamp, "Milestone Expired");
         require(product.milestoneCompleted < product.totalMilestones, "All milestones already completed");
 
         uint256 milestoneAmount = product.totalAmount / product.totalMilestones;
@@ -180,7 +180,11 @@ contract MileStones is AutomationCompatibleInterface {
         emit OwnersWithdrawl(msg.sender, amount);
     }
 
-    function getUserMilestoneDetails(string memory productId) external onlyOwner() onlyCreator(productId) view returns (Milestone memory) {
+    function getUserMilestoneDetails(string memory productId) public /*onlyOwner() onlyCreator(productId)*/ view returns (Milestone memory) {
         return products[productId];
+    }
+
+    function getCurrentTimestamp() public view returns (uint256) {
+        return block.timestamp;
     }
 }

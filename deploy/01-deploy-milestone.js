@@ -12,7 +12,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
   console.log(deployer);
   const mileStones = await deploy("MileStones", {
     from: deployer,
-    args: [deployer],
+    args: [deployer, 60],
     log: true,
     waitConfirmations: network.config.blockConfirmations || 1,
   });
