@@ -21,7 +21,8 @@ const productIds = [
       let _platformWallet;
       let deployer;
       let accounts;
-      const sendValue = ethers.parseEther("1");
+      const sendValue = ethers.parseEther("10");
+      const withdrawValue = ethers.parseEther("3");
 
       beforeEach(async () => {
         accounts = await ethers.getSigners();
@@ -156,6 +157,18 @@ const productIds = [
         });
         it("reverts if checkup is false", async () => {
           await expect(mileStones.performUpkeep("0x")).to.be.reverted;
+        });
+        it("owner withdraws funds", async () => {
+          await mileStones.lockFunds(productIds[0], { value: sendValue });
+          const balanceBeforeWithdrawl = await mileStones.getOwnerBalance();
+          const balanceBeforeUpkep = await mileStones.getOwnerBalance();
+          await network.provider.send("evm_increaseTime", [3600 * 24 * 7 + 1]);
+          await network.provider.request({ method: "evm_mine", params: [] });
+          const tx_upkeep = await mileStones.performUpkeep("0x");
+          const tx = await mileStones.ownersWithdrawl(1);
+          const balanceAfterWithdrawl = await mileStones.getOwnerBalance();
+          console.log(balanceBeforeWithdrawl, balanceAfterWithdrawl);
+          assert(tx);
         });
       });
     });

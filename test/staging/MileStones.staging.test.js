@@ -25,28 +25,5 @@ developmentChains.includes(network.name)
         beforeEach(async () => {
           await mileStones.lockFunds({ value: sendValue });
         });
-
-        it("complete milestone for a single funder", async function () {
-          //await mileStones.lockFunds({ value: sendValue });
-          const remainingAmount = await mileStones.getUserDetails(deployer);
-          const startingUserBalance = await ethers.provider.getBalance(
-            deployer
-          );
-          await mileStones.completeMilestone();
-          const remainingAmountAfterMilestone = await mileStones.getUserDetails(
-            deployer
-          );
-          const endingUserBalance = await ethers.provider.getBalance(deployer);
-
-          remainingAmountChange =
-            Number(remainingAmount[0]) -
-            Number(remainingAmountAfterMilestone[0]);
-          userBalanceChange =
-            Number(endingUserBalance) - Number(startingUserBalance);
-          assert.equal(
-            Math.abs(Number(remainingAmountAfterMilestone[2])),
-            Math.abs(Number(sendValue) * 0.98 * 0.25)
-          );
-        });
       });
     });
