@@ -21,7 +21,8 @@ const productIds = [
       let _platformWallet;
       let deployer;
       let accounts;
-      const sendValue = ethers.parseEther("10");
+      let mockV3Aggregator;
+      const sendValue = ethers.parseEther("100");
       const withdrawValue = ethers.parseEther("3");
 
       beforeEach(async () => {
@@ -33,12 +34,26 @@ const productIds = [
           "MileStones",
           mileStonesDeployment.address
         );
+        const mockV3AggregatorDeployment = await deployments.get(
+          "MockV3Aggregator"
+        );
+        mockV3Aggregator = await ethers.getContractAt(
+          "MockV3Aggregator",
+          mockV3AggregatorDeployment.address
+        );
       });
 
       describe("constructor", async function () {
         it("sets the _platformWallet correctly", async () => {
           const _platformWallet = await mileStones._platformWallet;
           assert.equal(_platformWallet, deployer.target);
+        });
+        it("sets the aggregator addresses correctly", async () => {
+          const response = await mileStones.getPriceFeed({});
+          const price = await mileStones.getMainNetBalance();
+          console.log("price of 1 dollar in eth:", price);
+          console.log("sent price  in eth:", sendValue);
+          assert.equal(response, mockV3Aggregator.target);
         });
       });
 

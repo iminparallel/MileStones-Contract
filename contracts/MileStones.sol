@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
+import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import "./PriceConverter.sol";
+import "hardhat/console.sol";
 error Milestones__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
 
 
 contract MileStones is AutomationCompatibleInterface {
-    
+    using PriceConverter for uint256;
+   
     enum MileStoneState {
         OPEN,
         CALCULATING
@@ -27,25 +31,32 @@ contract MileStones is AutomationCompatibleInterface {
     uint256 private constant MILESTONE_COUNT = 5;
     uint256 private constant PLATFORM_PERCENTAGE = 5; // Platform fee of 5%
     uint256 private owner_balance ;
+
     address private platformWallet;
     string[] private activeMilestones;
 
     uint256 private immutable i_interval;
     uint256 private s_lastTimeStamp;
+    uint256 private s_milestone_price;
 
     event FundsLocked(address indexed user, uint256 amount);
     event MilestoneCompleted(address indexed user, uint256 milestone, uint256 amountReleased);
     event AllFundsWithdrawn(address indexed user, uint256 totalAmount);
     event OwnersWithdrawl(address indexed creator, uint256 amount);
-    
+    event PriceChange(uint256 amount);
+
     MileStoneState private s_milestoneState;
 
-    constructor(address _platformWallet, uint256 interval) {
+    AggregatorV3Interface public s_priceFeed;
+
+    constructor(address _platformWallet, uint256 interval, address priceFeed, uint256 price) {
         require(_platformWallet != address(0), "Invalid platform wallet");
         platformWallet = _platformWallet;
         owner_balance = 0;
         s_lastTimeStamp = block.timestamp;
         i_interval = interval;
+        s_priceFeed = AggregatorV3Interface(priceFeed);
+        s_milestone_price = price;
     }
 
     modifier onlyOwner() {
@@ -59,7 +70,12 @@ contract MileStones is AutomationCompatibleInterface {
     }
 
     function lockFunds(string memory productId) external payable {
-        require(msg.value > 0, "Funds must be greater than 0");
+        uint256 minimumUSD =  s_milestone_price**18;
+        uint256 convertedRate = msg.value.getConversionRate(s_priceFeed);
+        //console.log('contract entry rate', convertedRate);
+        //console.log('contract entry fee', minimumUSD);
+
+        require(msg.value.getConversionRate(s_priceFeed) >= minimumUSD, "Funds must be greater than 0");
         require(products[productId].totalAmount == 0, "User already locked funds");
         activeMilestones.push(productId);
         uint256 fee = (msg.value * PLATFORM_PERCENTAGE) / 100;
@@ -180,6 +196,15 @@ contract MileStones is AutomationCompatibleInterface {
         emit OwnersWithdrawl(msg.sender, amount);
     }
 
+    function changeMileStonePrice( uint256 amount) external onlyOwner() {
+        s_milestone_price = amount;
+        emit PriceChange(amount);
+    }
+
+    function getUserMilestonePrice() public /*onlyOwner() onlyCreator(productId)*/ view returns (uint256) {
+        return s_milestone_price;
+    }
+
     function getUserMilestoneDetails(string memory productId) public /*onlyOwner() onlyCreator(productId)*/ view returns (Milestone memory) {
         return products[productId];
     }
@@ -190,5 +215,13 @@ contract MileStones is AutomationCompatibleInterface {
 
     function getOwnerBalance() public view onlyOwner() returns (uint256) {
         return owner_balance;
+    }
+
+    function getMainNetBalance() public view returns (uint256) {
+        return PriceConverter.getPrice(s_priceFeed);
+    }
+
+    function getPriceFeed() public view returns (AggregatorV3Interface) {
+        return s_priceFeed;
     }
 }

@@ -9,10 +9,19 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
   const { deploy, log } = deployments;
   const { deployer } = await getNamedAccounts();
   const chainId = network.config.chainId;
+
   console.log(deployer);
+
+  let ethUsdPriceFeedAddress;
+  if (chainId == 31337) {
+    const ethUsdAggregator = await deployments.get("MockV3Aggregator");
+    ethUsdPriceFeedAddress = ethUsdAggregator.address;
+  } else {
+    ethUsdPriceFeedAddress = networkConfig[chainId]["ethUsdPriceFeed"];
+  }
   const mileStones = await deploy("MileStones", {
     from: deployer,
-    args: [deployer, 60],
+    args: [deployer, 60, ethUsdPriceFeedAddress, 7],
     log: true,
     waitConfirmations: network.config.blockConfirmations || 1,
   });
