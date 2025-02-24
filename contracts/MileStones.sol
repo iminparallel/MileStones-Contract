@@ -72,10 +72,10 @@ contract MileStones is AutomationCompatibleInterface {
     function lockFunds(string memory productId) external payable {
         uint256 minimumUSD =  s_milestone_price**18;
         uint256 convertedRate = msg.value.getConversionRate(s_priceFeed);
-        //console.log('contract entry rate', convertedRate);
-        //console.log('contract entry fee', minimumUSD);
+        console.log('contract entry rate', convertedRate);
+        console.log('contract entry fee', minimumUSD);
 
-        require(msg.value.getConversionRate(s_priceFeed) >= minimumUSD, "Funds must be greater than 0");
+        require(msg.value.getConversionRate(s_priceFeed) >= minimumUSD, "Sent amount must be higher than entry fee");
         require(products[productId].totalAmount == 0, "User already locked funds");
         activeMilestones.push(productId);
         uint256 fee = (msg.value * PLATFORM_PERCENTAGE) / 100;
@@ -205,7 +205,7 @@ contract MileStones is AutomationCompatibleInterface {
         return s_milestone_price;
     }
 
-    function getUserMilestoneDetails(string memory productId) public /*onlyOwner() onlyCreator(productId)*/ view returns (Milestone memory) {
+    function getUserMilestoneDetails(string memory productId) public /*onlyOwner() onlyCreator(productId)*/  view returns (Milestone memory) {
         return products[productId];
     }
 
@@ -223,5 +223,10 @@ contract MileStones is AutomationCompatibleInterface {
 
     function getPriceFeed() public view returns (AggregatorV3Interface) {
         return s_priceFeed;
+    }
+
+    function getPrice() public view returns (uint256) {
+        uint256 minimumUSD =  s_milestone_price; 
+        return minimumUSD ;   
     }
 }

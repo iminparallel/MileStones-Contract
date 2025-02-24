@@ -1,8 +1,11 @@
 const fs = require("fs");
-const { network, deployments, ethers } = require("hardhat");
+const { network, deployments, ethers, artifacts } = require("hardhat");
 const FRONT_END_ADDRESSES =
-  "/Users/haritchowdhury/loader/src/constants/ContractAddresses.json";
-const FRONT_END_ABI = "/Users/haritchowdhury/loader/src/constants/abi.json";
+  "/Users/haritchowdhury/ainiversity-beta/LLM-PDF-Chat/src/constants/ContractAddresses.json";
+const FRONT_END_ABI =
+  "/Users/haritchowdhury/ainiversity-beta/LLM-PDF-Chat/src/constants/abi.json";
+const FRONT_END_ABI2 =
+  "/Users/haritchowdhury/ainiversity-beta/LLM-PDF-Chat/src/constants/abi2.json";
 
 module.exports = async () => {
   console.log("updating front end");
@@ -19,7 +22,7 @@ async function updateContractAddresses() {
   );
   const chainId = network.config.chainId.toString();
   const addresses = fs.readFileSync(FRONT_END_ADDRESSES, "utf8");
-
+  console.log(addresses);
   const currentAddresses = JSON.parse(addresses);
   if (chainId in currentAddresses) {
     if (!currentAddresses[chainId].includes(mileStones.target)) {
@@ -39,9 +42,19 @@ async function updateAbi() {
     mileStonesDeployment.address
   );
   console.log(JSON.stringify(mileStones.interface.format("json")));
-
+  const contractArtifact = await artifacts.readArtifact("MileStones"); // Replace with your contract name
+  const abi = contractArtifact.abi;
+  fs.writeFileSync(FRONT_END_ABI, JSON.stringify(abi));
+}
+async function updateAbi2() {
+  let mileStones;
+  const mileStonesDeployment = await deployments.get("MileStones");
+  mileStones = await ethers.getContractAt(
+    "MileStones",
+    mileStonesDeployment.address
+  );
   fs.writeFileSync(
-    FRONT_END_ABI,
+    FRONT_END_ABI2,
     JSON.stringify(mileStones.interface.format("json"))
   );
 }

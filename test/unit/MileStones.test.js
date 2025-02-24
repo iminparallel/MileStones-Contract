@@ -22,7 +22,7 @@ const productIds = [
       let deployer;
       let accounts;
       let mockV3Aggregator;
-      const sendValue = ethers.parseEther("100");
+      const sendValue = ethers.parseEther("0.002");
       const withdrawValue = ethers.parseEther("3");
 
       beforeEach(async () => {
@@ -51,6 +51,8 @@ const productIds = [
         it("sets the aggregator addresses correctly", async () => {
           const response = await mileStones.getPriceFeed({});
           const price = await mileStones.getMainNetBalance();
+          const pricetag = await mileStones.getPrice();
+          console.log("price tag:", pricetag);
           console.log("price of 1 dollar in eth:", price);
           console.log("sent price  in eth:", sendValue);
           assert.equal(response, mockV3Aggregator.target);
@@ -62,11 +64,12 @@ const productIds = [
           await expect(mileStones.lockFunds(productIds[0])).to.be.reverted;
         });
         it("locks funds", async () => {
-          await mileStones.lockFunds(productIds[0], { value: sendValue });
+          const pricetag = await mileStones.getPrice();
+          await mileStones.lockFunds(productIds[0], { value: pricetag });
           const response = await mileStones.getUserMilestoneDetails(
             productIds[0]
           );
-          amount = (BigInt(sendValue) * BigInt(95)) / BigInt(100);
+          amount = (BigInt(pricetag) * BigInt(95)) / BigInt(100);
           assert.equal(response[2], amount);
         });
       });

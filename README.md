@@ -15,3 +15,11 @@ yarn hardhat test --network sepolia - to test in sepolia test net
 ```
 
 # MileStones-Contract
+
+npx hardhat verify
+--network edu
+0xC133Fb660483dF64D4604F473EbbDe83A1feeb44
+[0x591dbdE55Fe58711B4B8089688a4EF4DBae6102f,
+3600 * 24 * 3,
+0x694AA1769357215DE4FAC081bf1f309aDC325306,
+1,]

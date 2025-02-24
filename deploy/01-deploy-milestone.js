@@ -21,7 +21,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
   }
   const mileStones = await deploy("MileStones", {
     from: deployer,
-    args: [deployer, 60, ethUsdPriceFeedAddress, 7],
+    args: [deployer, 3600 * 24 * 3, ethUsdPriceFeedAddress, 1],
     log: true,
     waitConfirmations: network.config.blockConfirmations || 1,
   });
@@ -30,7 +30,12 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     !developmentChains.includes(network.name) &&
     process.env.ETHERSCAN_API_KEY
   ) {
-    await verify(mileStones.address, [deployer]);
+    await verify(mileStones.address, [
+      deployer,
+      3600 * 24 * 3,
+      ethUsdPriceFeedAddress,
+      1,
+    ]);
   }
 };
 module.exports.tags = ["all", "milestones"];

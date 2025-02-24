@@ -38,9 +38,15 @@ module.exports = {
       blockConfirmations: 6,
     },
     edu: {
-      url: EDU_RPC_URL,
-      accounts: [EDU_PRIVATE_KEY],
+      url: "https://rpc.open-campus-codex.gelato.digital",
+      accounts: [PRIVATE_KEY],
       chainId: 656476,
+      blockConfirmations: 6,
+    },
+    arbitrum: {
+      url: "https://arbitrum-sepolia-rpc.publicnode.com",
+      accounts: [PRIVATE_KEY],
+      chainId: 421614,
       blockConfirmations: 6,
     },
     localhost: {
@@ -48,9 +54,25 @@ module.exports = {
       chainId: 31337,
     },
   },
-
+  /*
   etherscan: {
     apiKey: ETHERSCAN_API_KEY,
+  }, */
+  etherscan: {
+    apiKey: {
+      edu: ETHERSCAN_API_KEY,
+      sepolia: ETHERSCAN_API_KEY,
+    },
+    customChains: [
+      {
+        network: "edu",
+        chainId: 656476,
+        urls: {
+          apiURL: "https://edu-chain-testnet.blockscout.com/api",
+          browserURL: "https://edu-chain-testnet.blockscout.com",
+        },
+      },
+    ],
   },
   gasReporter: {
     enabled: true,
