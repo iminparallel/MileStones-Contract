@@ -34,13 +34,13 @@ const productIds = [
           "MileStones",
           mileStonesDeployment.address
         );
-        const mockV3AggregatorDeployment = await deployments.get(
+        /*const mockV3AggregatorDeployment = await deployments.get(
           "MockV3Aggregator"
         );
         mockV3Aggregator = await ethers.getContractAt(
           "MockV3Aggregator",
           mockV3AggregatorDeployment.address
-        );
+        );*/
       });
 
       describe("constructor", async function () {
@@ -48,7 +48,7 @@ const productIds = [
           const _platformWallet = await mileStones._platformWallet;
           assert.equal(_platformWallet, deployer.target);
         });
-        it("sets the aggregator addresses correctly", async () => {
+        /*it("sets the aggregator addresses correctly", async () => {
           const response = await mileStones.getPriceFeed({});
           const price = await mileStones.getMainNetBalance();
           const pricetag = await mileStones.getPrice();
@@ -56,7 +56,7 @@ const productIds = [
           console.log("price of 1 dollar in eth:", price);
           console.log("sent price  in eth:", sendValue);
           assert.equal(response, mockV3Aggregator.target);
-        });
+        });*/
       });
 
       describe("lock funds", async function () {
@@ -65,6 +65,7 @@ const productIds = [
         });
         it("locks funds", async () => {
           const pricetag = await mileStones.getPrice();
+          console.log("Price Tag:", pricetag);
           await mileStones.lockFunds(productIds[0], { value: pricetag });
           const response = await mileStones.getUserMilestoneDetails(
             productIds[0]

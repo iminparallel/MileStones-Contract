@@ -15,7 +15,7 @@ developmentChains.includes(network.name)
         accounts = await ethers.getSigners();
         deployer = (await getNamedAccounts()).deployer;
         await deployments.fixture(["all"]);
-        const mileStonesDeployment = await deployments.get("MileStones");
+        //const mileStonesDeployment = await deployments.get("MileStones");
         mileStones = await ethers.getContractAt(
           "MileStones",
           mileStonesDeployment.address

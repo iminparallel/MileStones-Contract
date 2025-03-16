@@ -1,9 +1,9 @@
 const fs = require("fs");
 const { network, deployments, ethers, artifacts } = require("hardhat");
 const FRONT_END_ADDRESSES =
-  "/Users/haritchowdhury/ainiversity-beta/LLM-PDF-Chat/src/constants/ContractAddresses.json";
+  "/Users/Administrator/LLM-PDF-Chat/src/constants/ContractAddresses.json";
 const FRONT_END_ABI =
-  "/Users/haritchowdhury/ainiversity-beta/LLM-PDF-Chat/src/constants/abi.json";
+  "/Users/Administrator/LLM-PDF-Chat/src/constants/abi.json";
 const FRONT_END_ABI2 =
   "/Users/haritchowdhury/ainiversity-beta/LLM-PDF-Chat/src/constants/abi2.json";
 
@@ -54,7 +54,7 @@ async function updateAbi2() {
     mileStonesDeployment.address
   );
   fs.writeFileSync(
-    FRONT_END_ABI2,
+    FRONT_END_ABI,
     JSON.stringify(mileStones.interface.format("json"))
   );
 }

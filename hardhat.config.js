@@ -9,13 +9,23 @@ const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 const EDU_RPC_URL = process.env.EDU_RPC_URL || "";
 const EDU_PRIVATE_KEY = process.env.EDU_PRIVATE_KEY || "";
+const ALCHEMY_KEY = process.env.ALCHEMY_KEY || "";
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
     compilers: [
-      { version: "0.8.28" },
-      { version: "0.8.0" },
-      { version: "0.6.0" },
+      //{ version: "0.8.28" },
+      {
+        version: "0.8.19",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+          evmVersion: "paris",
+        },
+      },
+      //{ version: "0.6.0" },
     ],
   },
   paths: {
@@ -32,21 +42,15 @@ module.exports = {
   networks: {
     hardhat: {},
     sepolia: {
-      url: SEPOLIA_RPC_URL,
-      accounts: [PRIVATE_KEY],
+      url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`,
+      accounts: [EDU_PRIVATE_KEY],
       chainId: 11155111,
       blockConfirmations: 6,
     },
     edu: {
       url: "https://rpc.open-campus-codex.gelato.digital",
-      accounts: [PRIVATE_KEY],
+      accounts: [EDU_PRIVATE_KEY],
       chainId: 656476,
-      blockConfirmations: 6,
-    },
-    arbitrum: {
-      url: "https://arbitrum-sepolia-rpc.publicnode.com",
-      accounts: [PRIVATE_KEY],
-      chainId: 421614,
       blockConfirmations: 6,
     },
     localhost: {
