@@ -8,7 +8,6 @@ error Milestones__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, ui
 
 
 contract MileStones is AutomationCompatibleInterface {
-    //using PriceConverter for uint256;
    
     enum MileStoneState {
         OPEN,
@@ -29,7 +28,7 @@ contract MileStones is AutomationCompatibleInterface {
     mapping(string => Milestone) private products; 
     
     uint256 private constant MILESTONE_COUNT = 5;
-    uint256 private constant PLATFORM_PERCENTAGE = 10; // Platform fee of 10%
+    uint256 private constant PLATFORM_PERCENTAGE = 10; 
     uint256 private owner_balance ;
 
     address private platformWallet;
@@ -47,15 +46,13 @@ contract MileStones is AutomationCompatibleInterface {
 
     MileStoneState private s_milestoneState;
 
-    //AggregatorV3Interface public s_priceFeed;
 
-    constructor(address _platformWallet, uint256 interval, /*address priceFeed,*/ uint256 price) {
+    constructor(address _platformWallet, uint256 interval, uint256 price) {
         require(_platformWallet != address(0), "Invalid platform wallet");
         platformWallet = _platformWallet;
         owner_balance = 0;
         s_lastTimeStamp = block.timestamp;
         i_interval = interval;
-        //s_priceFeed = AggregatorV3Interface(priceFeed);
         s_milestone_price = price;
     }
 
@@ -69,13 +66,13 @@ contract MileStones is AutomationCompatibleInterface {
         _;
     }
 
-    function lockFunds(string memory productId) external payable {
-        //uint256 minimumUSD =  s_milestone_price**18;
-        //uint256 convertedRate = msg.value.getConversionRate(s_priceFeed);
-        //console.log('contract entry rate', convertedRate);
-        //console.log('contract entry fee', minimumUSD);
+    modifier whenOpen() {
+        require(s_milestoneState == MileStoneState.OPEN, "Contract is in Upkeep");
+        _;
+    }
 
-        require(msg.value /*.getConversionRate(s_priceFeed)*/ >= s_milestone_price, "Sent amount must be higher than entry fee");
+    function lockFunds(string memory productId) external whenOpen() payable {
+        require(msg.value >= s_milestone_price, "Sent amount must be higher than entry fee");
         require(products[productId].totalAmount == 0, "User already locked funds");
         activeMilestones.push(productId);
         uint256 fee = (msg.value * PLATFORM_PERCENTAGE) / 100;
@@ -83,7 +80,6 @@ contract MileStones is AutomationCompatibleInterface {
         owner_balance += fee;
         uint256 endsAt = block.timestamp + 3600*24*7;
 
-        //payable(platformWallet).transfer(fee);
         
         products[productId] = Milestone({
             creator: msg.sender,
@@ -137,8 +133,6 @@ contract MileStones is AutomationCompatibleInterface {
                 j++;
             } else {
                 temp_owner_balance += milestone.totalAmount - milestone.amountWithdrawn;
-                //milestone.isCompleted = true;
-                //milestone.amountWithdrawn = milestone.totalAmount;
             }
         }
         if (j < updatedMileStones.length) {
@@ -149,12 +143,10 @@ contract MileStones is AutomationCompatibleInterface {
             activeMilestones = resizedMileStones;
         }
         owner_balance = temp_owner_balance;
-        //activeMilestones = updatedMileStones;
-        //s_lastTimeStamp = block.timestamp;
         s_milestoneState = MileStoneState.OPEN;
     }  
 
-    function completeMilestone(string memory productId) external onlyCreator(productId){
+    function completeMilestone(string memory productId) external whenOpen() onlyCreator(productId){
         Milestone storage product = products[productId];
         require(product.totalAmount > 0, "No funds locked");
         require(product.endsAt >= block.timestamp, "Milestone Expired");
@@ -164,7 +156,6 @@ contract MileStones is AutomationCompatibleInterface {
         product.milestoneCompleted++;
 
         if (product.milestoneCompleted == product.totalMilestones) {
-            // Final milestone: Release all remaining funds
             string[] memory copiedActiveMilestone = activeMilestones;
             string[] memory updatedMileStones = new string[] (copiedActiveMilestone.length - 1);
             uint256 j;
@@ -189,52 +180,19 @@ contract MileStones is AutomationCompatibleInterface {
         }
     }
 
-    function ownersWithdrawl( uint256 amount) external onlyOwner() {
-       /* string[] memory copiedActiveMilestone = activeMilestones;
-        uint256 temp_owner_balance = owner_balance;
-        uint256 j;
-        j = 0;
-        for (uint256 i = 0; i < copiedActiveMilestone.length; i++){
-            string memory milestoneId = copiedActiveMilestone[i];
-            Milestone storage milestone =  products[milestoneId];
-            if (milestone.endsAt > block.timestamp) {
-                j+=1;
-            }
-        }
-        string[] memory updatedMileStones = new string[](j);
-        j = 0;
-        for (uint256 i = 0; i < copiedActiveMilestone.length; i++){
-            string memory milestoneId = copiedActiveMilestone[i];
-            Milestone storage milestone =  products[milestoneId];
-            if (milestone.endsAt > block.timestamp) {
-                updatedMileStones[j] = copiedActiveMilestone[i];
-                j+=1;
-            }else{
-                temp_owner_balance += milestone.totalAmount -  milestone.amountWithdrawn;
-                milestone.isCompleted = true;
-                milestone.amountWithdrawn = milestone.totalAmount;
-            }
-            products[milestoneId] = milestone;
-        }
-        owner_balance = temp_owner_balance;
-        activeMilestones = updatedMileStones;
-        s_lastTimeStamp = block.timestamp; */
+    function ownersWithdrawl( uint256 amount) external whenOpen() onlyOwner() {
         require(amount <= owner_balance * 70 / 100, "Amount exceeds collected funds");
         payable(msg.sender).transfer(amount);
         owner_balance -= amount;
         emit OwnersWithdrawl(msg.sender, amount);
     }
 
-    function changeMileStonePrice( uint256 amount) external onlyOwner() {
+    function changeMileStonePrice( uint256 amount) external whenOpen() onlyOwner() {
         s_milestone_price = amount;
         emit PriceChange(amount);
     }
 
-    /*function getUserMilestonePrice() public onlyOwner() onlyCreator(productId) view returns (uint256) {
-        return s_milestone_price;
-    }*/
-
-    function getUserMilestoneDetails(string memory productId) public /*onlyOwner() onlyCreator(productId)*/  view returns (Milestone memory) {
+    function getUserMilestoneDetails(string memory productId) public view returns (Milestone memory) {
         return products[productId];
     }
 
@@ -245,14 +203,6 @@ contract MileStones is AutomationCompatibleInterface {
     function getOwnerBalance() public view onlyOwner() returns (uint256) {
         return owner_balance;
     }
-
-    /*function getMainNetBalance() public view returns (uint256) {
-        return PriceConverter.getPrice(s_priceFeed);
-    }*/
-
-    /*function getPriceFeed() public view returns (AggregatorV3Interface) {
-        return s_priceFeed;
-    }*/
 
     function getPrice() public view returns (uint256) {
         uint256 minimumUSD =  s_milestone_price; 

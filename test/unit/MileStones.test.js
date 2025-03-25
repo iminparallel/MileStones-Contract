@@ -177,6 +177,18 @@ const productIds = [
         it("reverts if checkup is false", async () => {
           await expect(mileStones.performUpkeep("0x")).to.be.reverted;
         });
+        it("reverts when upkeep is calculating", async () => {
+          await mileStones.lockFunds(productIds[0], { value: sendValue });
+          await mileStones.completeMilestone(productIds[0]);
+          const balanceBeforeUpkep = await mileStones.getOwnerBalance();
+          await network.provider.send("evm_increaseTime", [3600 * 24 * 7 + 1]);
+          await network.provider.request({ method: "evm_mine", params: [] });
+          const tx = await mileStones.performUpkeep("0x");
+          await mileStones.lockFunds(productIds[1], { value: sendValue });
+          await expect(
+            mileStones.lockFunds(productIds[1], { value: sendValue })
+          ).to.be.reverted;
+        });
         it("owner withdraws funds", async () => {
           await mileStones.lockFunds(productIds[0], { value: sendValue });
           const balanceBeforeWithdrawl = await mileStones.getOwnerBalance();
