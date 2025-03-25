@@ -184,7 +184,6 @@ const productIds = [
           await network.provider.send("evm_increaseTime", [3600 * 24 * 7 + 1]);
           await network.provider.request({ method: "evm_mine", params: [] });
           const tx = await mileStones.performUpkeep("0x");
-          await mileStones.lockFunds(productIds[1], { value: sendValue });
           await expect(
             mileStones.lockFunds(productIds[1], { value: sendValue })
           ).to.be.reverted;
